@@ -1,72 +1,122 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="si">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - School Project</title>
+    <title>Admin Dashboard - Direct Fast Approve</title>
     <style>
         body {
-            height: 100vh;
-            display: flex;
+            font-family: Arial, sans-serif;
+            background-color: #DFB8F2;
             margin: 0;
-            padding: 0;
-            font-family: sans-serif;
-            background: url('nature.jpeg') no-repeat center center fixed;
-            background-size: cover;
-            justify-content: center;
-            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #B43EF0;
             color: white;
         }
-        .lessons-container {
-            max-width: 600px;
-            width: 100%;
-            padding: 30px;
-            background: rgba(0, 0, 0, 0.8);
-            border-radius: 20px;
-            text-align: center;
-            box-shadow: 0 0 10px black;
+        tr:hover {
+            background-color: #f5f5f5;
         }
-        .student-row {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .badge-pending {
+            background-color: #ffc107;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
         }
-        .submit {
-            width: auto;
-            padding: 10px 20px;
-            border-radius: 20px;
-            border: 0;
-            font-weight: 900;
-            background: white;
+        .badge-approved {
+            background-color: #28a745;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .btn-approve {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
             cursor: pointer;
-            color: black;
+            font-weight: bold;
+            transition: 0.2s;
         }
-        .submit:hover {
-            box-shadow: 0 0 9px rgba(255, 255, 255, 0.662);
+        .btn-approve:hover {
+            background-color: #218838;
+        }
+        .count-badge {
+            background-color: #6c757d;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-msg {
+            font-style: italic;
+            color: #555;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
         }
     </style>
 </head>
 <body>
 
-    <div class="lessons-container">
-        <h2>Admin Panel - Pending Students</h2>
-        <p>අනුමත කිරීමට බලාපොරොත්තුවෙන් සිටින සිසුන් ලැයිස්තුව:</p>
-        <hr style="border: 1px solid rgba(255,255,255,0.2); margin-bottom: 20px;">
+    <div class="container">
+        <h2>වෙබ් අඩවියෙන්ම Log in තොරතුරු</h2>
+        <p style="color: #666;">(Real-time)  Admin.</p>
         
-        <div id="pending-students-list">
-            <p>Loading students...</p>
-        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ශිෂ්‍යයාගේ නම (Username)</th>
+                    <th>ඊමේල් ලිපිනය</th>
+                    <th>අවසන් වරට Login වූ වේලාව</th>
+                    <th>Login වාර ගණන</th>
+                    <th>තත්ත්වය (Status)</th>
+                    <th>ක්‍රියාමාර්ග</th>
+                </tr>
+            </thead>
+            <tbody id="students-container">
+                <tr>
+                    <td colspan="6" class="status-msg" id="loading-row">Loading students... (දත්ත පද්ධතියට සම්බන්ධ වෙමින් පවතී)</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, updateDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ඔයාගේ Firebase Config දත්ත
+        // ඔයා ලබාදුන් Firebase Config විස්තර
         const firebaseConfig = {
             apiKey: "AIzaSyCmciwmEbSDgA5PhCY12a_vKqXl4GDBeZ8",
             authDomain: "school-project-5fe93.firebaseapp.com",
@@ -77,52 +127,89 @@
             measurementId: "G-5MG8T54708"
         };
 
-        // Initialize Firebase
+        // Firebase Initialize කිරීම
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // status එක 'pending' අය විතරක් ඩේටාබේස් එකෙන් ලයිව් ඇදලා ගන්නවා
-        const q = query(collection(db, "users"), where("status", "==", "pending"));
-        
-        onSnapshot(q, (querySnapshot) => {
-            const listDiv = document.getElementById("pending-students-list");
-            listDiv.innerHTML = ""; 
+        // Real-time ශිෂ්‍යයන් ලැයිස්තුව ලබාගැනීම
+        function listenForNewStudents() {
+            const studentsContainer = document.getElementById("students-container");
+            if (!studentsContainer) return;
 
-            if(querySnapshot.empty) {
-                listDiv.innerHTML = "<p style='color: #ccc;'>දැනට අනුමත කිරීමට සිසුන් කිසිවෙක් නැත.</p>";
-                return;
-            }
+            const collectionRef = collection(db, "users"); 
+            
+            // 💡 හැමෝමවම (Pending සහ Approved ඔක්කොම) එකම තැනකින් බලාගන්න query එක සකස් කළා
+            const q = query(collectionRef);
 
-            querySnapshot.forEach((docSnap) => {
-                const student = docSnap.data();
-                const studentId = docSnap.id;
+            onSnapshot(q, (querySnapshot) => {
+                studentsContainer.innerHTML = ""; // පරණ දත්ත සහ Loading මැසේජ් එක අයින් කරනවා
 
-                const studentRow = document.createElement("div");
-                studentRow.className = "student-row";
+                if (querySnapshot.empty) {
+                    studentsContainer.innerHTML = "<tr><td colspan='6' style='text-align:center; color:#888; font-weight:bold; padding:20px;'>ශිෂ්‍යයන් කිසිවෙකු නැත!</td></tr>";
+                    return;
+                }
 
-                studentRow.innerHTML = `
-                    <div style="text-align: left;">
-                        <strong>Name:</strong> ${student.username} <br>
-                        <strong>Email:</strong> ${student.email}
-                    </div>
-                    <button class="submit" onclick="approveStudent('${studentId}')">Approve</button>
-                `;
-                listDiv.appendChild(studentRow);
+                querySnapshot.forEach((doc) => {
+                    const student = doc.data();
+                    const studentId = doc.id; 
+
+                    // Firebase Server Timestamp එක කියවිය හැකි ශ්‍රී ලංකා වේලාවකට හැරවීම
+                    let formattedTime = "තවමත් Login වී නැත";
+                    if (student.lastLogin) {
+                        const date = student.lastLogin.toDate();
+                        formattedTime = date.toLocaleString('si-LK'); 
+                    }
+
+                    // වාර ගණන (නැත්නම් 0 පෙන්වයි)
+                    const loginCount = student.loginCount || 0;
+
+                    // තත්ත්වය අනුව Badge එක වෙනස් කිරීම
+                    const isApproved = student.status === "approved";
+                    const statusBadge = isApproved 
+                        ? `<span class="badge-approved">Approved</span>` 
+                        : `<span class="badge-pending">Pending</span>`;
+
+                    // ක්‍රියාමාර්ග බටන් එක (Approve නම් බටන් එක නැත, Pending නම් විතරක් බටන් එක පෙනේ)
+                    const actionButton = isApproved
+                        ? `<span style="color: #28a745; font-weight: bold;">✓ සාර්ථකයි</span>`
+                        : `<button class="btn-approve" onclick="approveStudent('${studentId}')">✓ Approve Fast</button>`;
+
+                    studentsContainer.innerHTML += `
+                        <tr>
+                            <td>${student.username || 'නමක් නැත'}</td>
+                            <td>${student.email || 'Email නැත'}</td>
+                            <td style="color: #555; font-weight: 500;">${formattedTime}</td>
+                            <td><span class="count-badge">${loginCount}</span></td>
+                            <td>${statusBadge}</td>
+                            <td>${actionButton}</td>
+                        </tr>
+                    `;
+                });
+            }, (error) => {
+                console.error("Firebase Error: ", error);
+                studentsContainer.innerHTML = `<tr><td colspan='6' style='color:red; text-align:center; font-weight:bold; padding:20px;'>Error: ${error.message}<br>කරුණාකර Firebase Rules "true" කර ඇතිදැයි පරීක්ෂා කරන්න.</td></tr>`;
             });
-        });
+        }
 
-        // Approve බටන් එක එබුවම ක්‍රියාත්මක වන Function එක
+        // වෙබ් එකේ බටන් එක එබූ විට Firebase එකේ Status එක Approved කරන ශ්‍රිතය
         window.approveStudent = async function(studentId) {
             try {
                 const userRef = doc(db, "users", studentId);
+                
                 await updateDoc(userRef, {
                     status: "approved"
                 });
+                
                 alert("ශිෂ්‍යයා සාර්ථකව අනුමත කරන ලදී!");
+                
             } catch (error) {
-                alert("Error approving student: " + error.message);
+                alert("Error: " + error.message);
             }
-        }
+        };
+
+        // පිටුව පූරණය වූ සැනින් ශිෂ්‍යයන් සෙවීම අරඹන්න
+        listenForNewStudents();
+
     </script>
 </body>
 </html>
